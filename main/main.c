@@ -1,11 +1,12 @@
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#include "eol_protocol_test.h"
 
 void app_main(void)
 {
+    eol_protocol_run_tests();
+
     while (1) {
-        printf("LoRa EOL Gateway boot OK\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        printf("LoRa EOL Gateway alive\n");
     }
 }

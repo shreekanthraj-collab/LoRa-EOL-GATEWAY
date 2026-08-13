@@ -1,2 +1,9 @@
-idf_component_register(SRCS "main.c"
-                       INCLUDE_DIRS ".")
+idf_component_register(
+    SRCS
+        "main.c"
+        "eol/eol_protocol.c"
+        "eol/protocol_test.c"
+    INCLUDE_DIRS
+        "."
+        "eol"
+)
