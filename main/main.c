@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "eol_protocol_test.h"
+#include "protocol_test.h"
 
 void app_main(void)
 {
