@@ -3,8 +3,7 @@
 #include "eol_registry.h"
 #include "eol_types.h"
 
-typedef EolTestStatus_t (*EolTestFunction_t)(EolTestId_t test_id);
-
+typedef EolTestResult_t (*EolTestFunction_t)(EolTestId_t test_id);
 typedef struct
 {
 	EolTestId_t test_id;
