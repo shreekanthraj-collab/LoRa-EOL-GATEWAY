@@ -5,6 +5,7 @@ idf_component_register(
         "eol/protocol_test.c"
         "eol/eol_manager.c"
         "eol/eol_registry.c"
+        "eol/eol_executor.c"
     INCLUDE_DIRS
         "."
         "eol"
