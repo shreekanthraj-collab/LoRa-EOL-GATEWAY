@@ -1,6 +1,5 @@
 #include "eol_manager.h"
 
-#include "eol_executor.h"
 #include "eol_node.h"
 #include "eol_registry.h"
 
@@ -10,10 +9,34 @@ static EolTestResult_t s_manager_result = {
     .detail = "Manager not initialized",
 };
 
-static EolTestExecutorEntry_t s_node_test_entry = {
-    .test_id = EOL_N01_BOOT_HEALTH,
-    .function = eol_node_run_test,
-};
+static EolTestResult_t run_registered_test(EolTestId_t test_id)
+{
+    const EolTestDefinition_t *definition = eol_registry_get(test_id);
+
+    if (definition == NULL) {
+        EolTestResult_t result = {
+            .status = EOL_TEST_NOT_FOUND,
+            .name = "Unknown test",
+            .detail = "Test ID not present in registry",
+        };
+
+        return result;
+    }
+
+    switch (definition->group) {
+        case EOL_GROUP_NODE:
+            return eol_node_run_test(test_id);
+
+        case EOL_GROUP_GATEWAY:
+        case EOL_GROUP_SYSTEM:
+        default:
+            return (EolTestResult_t) {
+                .status = EOL_TEST_NOT_FOUND,
+                .name = definition->name,
+                .detail = "Test backend not implemented",
+            };
+    }
+}
 
 void eol_manager_init(void)
 {
@@ -38,9 +61,7 @@ void eol_manager_run(void)
         return;
     }
 
-    (void)eol_executor_run(
-        &s_node_test_entry,
-        &s_manager_result);
+    s_manager_result = run_registered_test(EOL_N01_BOOT_HEALTH);
 }
 
 const EolTestResult_t *eol_manager_get_result(void)
