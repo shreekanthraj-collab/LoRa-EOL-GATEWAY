@@ -1,11 +1,12 @@
 idf_component_register(
-    SRCS
+     SRCS
         "main.c"
         "eol/eol_protocol.c"
         "eol/protocol_test.c"
         "eol/eol_manager.c"
         "eol/eol_registry.c"
         "eol/eol_executor.c"
+        "eol/eol_node.c"
     INCLUDE_DIRS
         "."
         "eol"
