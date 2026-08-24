@@ -11,22 +11,31 @@ bool eol_lora_transport_init(
     LoraTransportConfig_t lora_config;
     NfwStatus_t status;
 
-    if (config == NULL) {
+    if (config == NULL)
+    {
         return false;
     }
 
-    lora_config = (LoraTransportConfig_t) {
+    lora_config = (LoraTransportConfig_t)
+    {
         .spiHost = 2U,
-        .frequencyHz = LORA_TRANSPORT_DEFAULT_FREQUENCY_HZ,
-        .bandwidth = LORA_TRANSPORT_DEFAULT_BANDWIDTH,
-        .spreadingFactor = LORA_TRANSPORT_DEFAULT_SPREADING_FACTOR,
-        .codingRate = LORA_TRANSPORT_DEFAULT_CODING_RATE,
-        .txPowerDbm = LORA_TRANSPORT_DEFAULT_TX_POWER_DBM,
+        .frequencyHz =
+            LORA_TRANSPORT_DEFAULT_FREQUENCY_HZ,
+        .bandwidth =
+            LORA_TRANSPORT_DEFAULT_BANDWIDTH,
+        .spreadingFactor =
+            LORA_TRANSPORT_DEFAULT_SPREADING_FACTOR,
+        .codingRate =
+            LORA_TRANSPORT_DEFAULT_CODING_RATE,
+        .txPowerDbm =
+            LORA_TRANSPORT_DEFAULT_TX_POWER_DBM
     };
 
-    status = loraTransportInit(&lora_config);
+    status = loraTransportInit(
+        &lora_config);
 
-    if (status != NFW_STATUS_OK) {
+    if (status != NFW_STATUS_OK)
+    {
         return false;
     }
 
@@ -42,14 +51,16 @@ bool eol_lora_transport_send(
 {
     if (!s_initialized ||
         data == NULL ||
-        length == 0U) {
+        length == 0U)
+    {
         return false;
     }
 
     return loraTransportTransmit(
                data,
                (uint32_t)length,
-               s_config.timeout_ms) == NFW_STATUS_OK;
+               s_config.timeout_ms) ==
+           NFW_STATUS_OK;
 }
 
 bool eol_lora_transport_receive(
@@ -62,7 +73,8 @@ bool eol_lora_transport_receive(
     if (!s_initialized ||
         data == NULL ||
         capacity == 0U ||
-        length == NULL) {
+        length == NULL)
+    {
         return false;
     }
 
@@ -72,7 +84,9 @@ bool eol_lora_transport_receive(
             data,
             (uint32_t)capacity,
             &received_length,
-            s_config.timeout_ms) != NFW_STATUS_OK) {
+            s_config.timeout_ms) !=
+        NFW_STATUS_OK)
+    {
         return false;
     }
 
@@ -83,18 +97,22 @@ bool eol_lora_transport_receive(
 
 bool eol_lora_transport_start_receive(void)
 {
-    if (!s_initialized) {
+    if (!s_initialized)
+    {
         return false;
     }
 
-    return loraTransportStartReceive() == NFW_STATUS_OK;
+    return loraTransportStartReceive() ==
+           NFW_STATUS_OK;
 }
 
 bool eol_lora_transport_stop_receive(void)
 {
-    if (!s_initialized) {
+    if (!s_initialized)
+    {
         return false;
     }
 
-    return loraTransportStandby() == NFW_STATUS_OK;
+    return loraTransportStandby() ==
+           NFW_STATUS_OK;
 }
