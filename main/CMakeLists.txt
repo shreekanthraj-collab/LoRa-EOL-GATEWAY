@@ -19,4 +19,7 @@ idf_component_register(
         "../../orbdrive-firmware/framework/core/include"
         "../../orbdrive-firmware/framework/nfw_hal/include"
         "../../orbdrive-firmware/boards/orb_drive_main"
+
+    REQUIRES
+        common
 )
