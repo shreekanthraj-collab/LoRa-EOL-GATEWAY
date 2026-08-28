@@ -14,16 +14,11 @@ static EolTestResult_t s_manager_result = {
 static bool s_ui_initialized = false;
 static bool s_test_running = false;
 
-/* ========================================================================== */
-/* Test dispatch                                                              */
-/* ========================================================================== */
-
 static EolTestResult_t run_registered_test(
     EolTestId_t test_id)
 {
-    const EolTestDefinition_t *definition;
-
-    definition = eol_registry_get(test_id);
+    const EolTestDefinition_t *definition =
+        eol_registry_get(test_id);
 
     if (definition == NULL)
     {
@@ -54,27 +49,19 @@ static EolTestResult_t run_registered_test(
     }
 }
 
-/* ========================================================================== */
-/* Initialization                                                             */
-/* ========================================================================== */
-
 void eol_manager_init(void)
 {
     EolNodeConfig_t node_config = {
-        .node_id = 1U,
-        .timeout_ms = 5000U,
+        .node_id = 1,
+        .timeout_ms = 5000,
     };
 
     s_manager_result.status = EOL_TEST_NOT_RUN;
     s_manager_result.name = "EOL Manager";
     s_manager_result.detail = "Manager initialized";
 
-    s_ui_initialized = false;
     s_test_running = false;
 
-    /*
-     * Initialize operator interface.
-     */
     s_ui_initialized = eol_ui_init();
 
     if (!s_ui_initialized)
@@ -84,27 +71,15 @@ void eol_manager_init(void)
         return;
     }
 
-    /*
-     * Initialize Node-side EOL interface.
-     */
     if (!eol_node_init(&node_config))
     {
         s_manager_result.status = EOL_TEST_FAIL;
         s_manager_result.detail = "Node initialization failed";
-        return;
     }
-
-    s_manager_result.detail = "EOL Manager ready";
 }
-
-/* ========================================================================== */
-/* EOL sequence                                                               */
-/* ========================================================================== */
 
 void eol_manager_run(void)
 {
-    EolTestResult_t result;
-
     if (!s_ui_initialized)
     {
         return;
@@ -113,7 +88,8 @@ void eol_manager_run(void)
     /*
      * RESET always has priority.
      *
-     * This returns the EOL fixture to the READY state.
+     * The fixture can return to READY state at any time
+     * before the next EOL cycle begins.
      */
     if (eol_ui_button_pressed(EOL_UI_BUTTON_RESET))
     {
@@ -135,7 +111,7 @@ void eol_manager_run(void)
     }
 
     /*
-     * Do not start another test sequence while one is running.
+     * Do not start another sequence while one is running.
      */
     if (s_test_running)
     {
@@ -143,7 +119,7 @@ void eol_manager_run(void)
     }
 
     /*
-     * Wait for START button.
+     * Wait for START.
      */
     if (!eol_ui_button_pressed(EOL_UI_BUTTON_START))
     {
@@ -151,7 +127,20 @@ void eol_manager_run(void)
     }
 
     /*
-     * EOL sequence starts here.
+     * Current validated development sequence:
+     *
+     * N01 -> G01 -> G10
+     *
+     * N01:
+     * Node boot / basic health.
+     *
+     * G01:
+     * Gateway shared SPI.
+     *
+     * G10:
+     * Gateway Radio 0 RX/TX control.
+     *
+     * Remaining registry tests are not executed yet.
      */
     s_test_running = true;
 
@@ -160,17 +149,17 @@ void eol_manager_run(void)
     s_manager_result.detail = "EOL sequence running";
 
     /*
-     * Wait for START release.
+     * Wait for START release so one press cannot retrigger
+     * the sequence.
      */
     while (eol_ui_button_pressed(EOL_UI_BUTTON_START))
     {
         /* Wait for release. */
     }
 
-    /* ====================================================================== */
-    /* Operator FAIL / STOP                                                   */
-    /* ====================================================================== */
-
+    /*
+     * Allow operator abort before starting the sequence.
+     */
     if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
     {
         s_manager_result.status = EOL_TEST_FAIL;
@@ -184,15 +173,14 @@ void eol_manager_run(void)
     }
 
     /* ====================================================================== */
-    /* N01 - Node boot / health                                               */
+    /* N01 - Node boot / basic health                                         */
     /* ====================================================================== */
 
-    result = run_registered_test(EOL_N01_BOOT_HEALTH);
+    s_manager_result =
+        run_registered_test(EOL_N01_BOOT_HEALTH);
 
-    if (result.status != EOL_TEST_PASS)
+    if (s_manager_result.status != EOL_TEST_PASS)
     {
-        s_manager_result = result;
-
         eol_ui_signal_fail();
 
         s_test_running = false;
@@ -200,7 +188,7 @@ void eol_manager_run(void)
     }
 
     /*
-     * Check FAIL / STOP between tests.
+     * Check operator abort between tests.
      */
     if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
     {
@@ -218,11 +206,25 @@ void eol_manager_run(void)
     /* G01 - Gateway shared SPI                                               */
     /* ====================================================================== */
 
-    result = run_registered_test(EOL_G01_SHARED_SPI);
+    s_manager_result =
+        run_registered_test(EOL_G01_SHARED_SPI);
 
-    if (result.status != EOL_TEST_PASS)
+    if (s_manager_result.status != EOL_TEST_PASS)
     {
-        s_manager_result = result;
+        eol_ui_signal_fail();
+
+        s_test_running = false;
+        return;
+    }
+
+    /*
+     * Check operator abort between tests.
+     */
+    if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
+    {
+        s_manager_result.status = EOL_TEST_FAIL;
+        s_manager_result.name = "EOL Manager";
+        s_manager_result.detail = "Operator aborted EOL sequence";
 
         eol_ui_signal_fail();
 
@@ -231,21 +233,33 @@ void eol_manager_run(void)
     }
 
     /* ====================================================================== */
-    /* Sequence complete                                                      */
+    /* G10 - Gateway Radio 0 RX/TX control                                    */
     /* ====================================================================== */
 
+    s_manager_result =
+        run_registered_test(EOL_G10_RADIO0_RXTX_CONTROL);
+
+    if (s_manager_result.status != EOL_TEST_PASS)
+    {
+        eol_ui_signal_fail();
+
+        s_test_running = false;
+        return;
+    }
+
+    /*
+     * Current validated development sequence completed.
+     *
+     * N01 -> G01 -> G10
+     */
     s_manager_result.status = EOL_TEST_PASS;
     s_manager_result.name = "EOL Manager";
-    s_manager_result.detail = "N01 and G01 passed";
+    s_manager_result.detail = "N01, G01 and G10 passed";
 
     eol_ui_signal_pass();
 
     s_test_running = false;
 }
-
-/* ========================================================================== */
-/* Result                                                                     */
-/* ========================================================================== */
 
 const EolTestResult_t *eol_manager_get_result(void)
 {
