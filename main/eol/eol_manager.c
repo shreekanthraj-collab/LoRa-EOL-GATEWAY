@@ -49,6 +49,41 @@ static EolTestResult_t run_registered_test(
     }
 }
 
+static bool operator_abort_requested(void)
+{
+    if (!eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
+    {
+        return false;
+    }
+
+    s_manager_result.status = EOL_TEST_FAIL;
+    s_manager_result.name = "EOL Manager";
+    s_manager_result.detail = "Operator aborted EOL sequence";
+
+    eol_ui_signal_fail();
+
+    s_test_running = false;
+
+    return true;
+}
+
+static bool run_test_and_check(
+    EolTestId_t test_id)
+{
+    s_manager_result = run_registered_test(test_id);
+
+    if (s_manager_result.status != EOL_TEST_PASS)
+    {
+        eol_ui_signal_fail();
+
+        s_test_running = false;
+
+        return false;
+    }
+
+    return true;
+}
+
 void eol_manager_init(void)
 {
     EolNodeConfig_t node_config = {
@@ -68,6 +103,7 @@ void eol_manager_init(void)
     {
         s_manager_result.status = EOL_TEST_FAIL;
         s_manager_result.detail = "EOL UI initialization failed";
+
         return;
     }
 
@@ -87,9 +123,6 @@ void eol_manager_run(void)
 
     /*
      * RESET always has priority.
-     *
-     * The fixture can return to READY state at any time
-     * before the next EOL cycle begins.
      */
     if (eol_ui_button_pressed(EOL_UI_BUTTON_RESET))
     {
@@ -99,9 +132,6 @@ void eol_manager_run(void)
 
         s_test_running = false;
 
-        /*
-         * Wait for RESET release.
-         */
         while (eol_ui_button_pressed(EOL_UI_BUTTON_RESET))
         {
             /* Wait for release. */
@@ -127,20 +157,22 @@ void eol_manager_run(void)
     }
 
     /*
-     * Current validated development sequence:
+     * Current EOL Gateway sequence:
      *
-     * N01 -> G01 -> G10
+     * N01
+     * G01
+     * G03
+     * G04
+     * G05
+     * G07
+     * G08
+     * G09
+     * G10
+     * G11
      *
-     * N01:
-     * Node boot / basic health.
-     *
-     * G01:
-     * Gateway shared SPI.
-     *
-     * G10:
-     * Gateway Radio 0 RX/TX control.
-     *
-     * Remaining registry tests are not executed yet.
+     * G02/G06 identity remain deferred because the
+     * production Gateway API does not expose a radio
+     * identity diagnostic function.
      */
     s_test_running = true;
 
@@ -149,8 +181,7 @@ void eol_manager_run(void)
     s_manager_result.detail = "EOL sequence running";
 
     /*
-     * Wait for START release so one press cannot retrigger
-     * the sequence.
+     * Wait for START release.
      */
     while (eol_ui_button_pressed(EOL_UI_BUTTON_START))
     {
@@ -158,17 +189,10 @@ void eol_manager_run(void)
     }
 
     /*
-     * Allow operator abort before starting the sequence.
+     * Allow operator abort before starting.
      */
-    if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
+    if (operator_abort_requested())
     {
-        s_manager_result.status = EOL_TEST_FAIL;
-        s_manager_result.name = "EOL Manager";
-        s_manager_result.detail = "Operator aborted EOL sequence";
-
-        eol_ui_signal_fail();
-
-        s_test_running = false;
         return;
     }
 
@@ -176,29 +200,13 @@ void eol_manager_run(void)
     /* N01 - Node boot / basic health                                         */
     /* ====================================================================== */
 
-    s_manager_result =
-        run_registered_test(EOL_N01_BOOT_HEALTH);
-
-    if (s_manager_result.status != EOL_TEST_PASS)
+    if (!run_test_and_check(EOL_N01_BOOT_HEALTH))
     {
-        eol_ui_signal_fail();
-
-        s_test_running = false;
         return;
     }
 
-    /*
-     * Check operator abort between tests.
-     */
-    if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
+    if (operator_abort_requested())
     {
-        s_manager_result.status = EOL_TEST_FAIL;
-        s_manager_result.name = "EOL Manager";
-        s_manager_result.detail = "Operator aborted EOL sequence";
-
-        eol_ui_signal_fail();
-
-        s_test_running = false;
         return;
     }
 
@@ -206,55 +214,130 @@ void eol_manager_run(void)
     /* G01 - Gateway shared SPI                                               */
     /* ====================================================================== */
 
-    s_manager_result =
-        run_registered_test(EOL_G01_SHARED_SPI);
-
-    if (s_manager_result.status != EOL_TEST_PASS)
+    if (!run_test_and_check(EOL_G01_SHARED_SPI))
     {
-        eol_ui_signal_fail();
-
-        s_test_running = false;
         return;
     }
 
-    /*
-     * Check operator abort between tests.
-     */
-    if (eol_ui_button_pressed(EOL_UI_BUTTON_FAIL_STOP))
+    if (operator_abort_requested())
     {
-        s_manager_result.status = EOL_TEST_FAIL;
-        s_manager_result.name = "EOL Manager";
-        s_manager_result.detail = "Operator aborted EOL sequence";
-
-        eol_ui_signal_fail();
-
-        s_test_running = false;
         return;
     }
 
     /* ====================================================================== */
-    /* G10 - Gateway Radio 0 RX/TX control                                    */
+    /* G03 - Radio 0 RESET                                                    */
     /* ====================================================================== */
 
-    s_manager_result =
-        run_registered_test(EOL_G10_RADIO0_RXTX_CONTROL);
-
-    if (s_manager_result.status != EOL_TEST_PASS)
+    if (!run_test_and_check(EOL_G03_RADIO0_RESET))
     {
-        eol_ui_signal_fail();
+        return;
+    }
 
-        s_test_running = false;
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G04 - Radio 0 BUSY                                                     */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G04_RADIO0_BUSY))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G05 - Radio 0 DIO1                                                     */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G05_RADIO0_DIO1))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G07 - Radio 1 RESET                                                    */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G07_RADIO1_RESET))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G08 - Radio 1 BUSY                                                     */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G08_RADIO1_BUSY))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G09 - Radio 1 DIO1                                                     */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G09_RADIO1_DIO1))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G10 - Radio 0 RX/TX control                                            */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G10_RADIO0_RXTX_CONTROL))
+    {
+        return;
+    }
+
+    if (operator_abort_requested())
+    {
+        return;
+    }
+
+    /* ====================================================================== */
+    /* G11 - Radio 1 RX/TX control                                            */
+    /* ====================================================================== */
+
+    if (!run_test_and_check(EOL_G11_RADIO1_RXTX_CONTROL))
+    {
         return;
     }
 
     /*
-     * Current validated development sequence completed.
-     *
-     * N01 -> G01 -> G10
+     * Sequence completed.
      */
     s_manager_result.status = EOL_TEST_PASS;
     s_manager_result.name = "EOL Manager";
-    s_manager_result.detail = "N01, G01 and G10 passed";
+    s_manager_result.detail =
+        "N01, G01, G03, G04, G05, G07, G08, G09, G10 and G11 passed";
 
     eol_ui_signal_pass();
 
